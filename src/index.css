@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 25% 95%;
+    --foreground: 0 0% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 18%;
+    --primary: 150 15% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 15% 93%;
+    --secondary-foreground: 0 0% 18%;
+    --muted: 40 20% 94%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 32 50% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 8 55% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 150 15% 55%;
+    --radius: 0.5rem;
+
+    /* Blooma Naturals Brand Colors */
+    --sage: 150 15% 55%;
+    --ochre: 32 50% 55%;
+    --forest: 150 20% 30%;
+    --charcoal: 0 0% 18%;
+    --cream: 40 25% 95%;
+    --soft-sage: 150 15% 94%;
+    --success: 120 25% 46%;
+    --error: 8 55% 55%;
+  }
+
+  body {
+    @apply bg-[#EBE5D9] text-[#2D2D2D] antialiased;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .text-sage {
+    color: #455848;
+  }
+
+  .text-ochre {
+    color: #C59B53;
+  }
+
+  .text-forest {
+    color: #2C3A30;
+  }
+
+  .bg-sage {
+    background-color: #455848;
+  }
+
+  .bg-ochre {
+    background-color: #C59B53;
+  }
+
+  .bg-forest {
+    background-color: #2C3A30;
+  }
+
+  .bg-cream {
+    background-color: #EBE5D9;
+  }
+
+  .bg-soft-sage {
+    background-color: #EDF2EF;
+  }
+
+  .btn-primary {
+    @apply bg-[#C59B53] text-white px-8 py-3 text-sm font-semibold transition-all duration-300;
+  }
+
+  .btn-primary:hover {
+    @apply bg-[#b37d3f];
+  }
+
+  .btn-outline {
+    @apply border border-[#2D2D2D] text-[#2D2D2D] px-8 py-3 text-sm font-semibold transition-all duration-300;
+  }
+
+  .btn-outline:hover {
+    @apply bg-[#2D2D2D] text-white;
+  }
+
+  .section-padding {
+    @apply px-5 md:px-10 lg:px-16 xl:px-20;
+  }
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #EBE5D9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #455848;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2C3A30;
+}
+
+/* Star rating */
+.star-filled {
+  color: #C59B53;
+}
+
+.star-empty {
+  color: #E5E5E5;
+}
