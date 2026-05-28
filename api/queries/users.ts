@@ -29,11 +29,37 @@ export async function upsertUser(data: InsertUser) {
     updateSet.role = "admin";
   }
 
-  await getDb()
-    .insert(schema.users)
-    .values(values)
-    .onConflictDoUpdate({
-      target: schema.users.unionId,
-      set: updateSet,
+  const db = getDb();
+
+  // First, check if the user already exists with this exact unionId
+  const existingByUnion = await db.query.users.findFirst({
+    where: eq(schema.users.unionId, data.unionId),
+  });
+
+  if (existingByUnion) {
+    // Just update the existing authenticated user
+    await db.update(schema.users).set(updateSet).where(eq(schema.users.id, existingByUnion.id));
+    return;
+  }
+
+  // If not found by unionId, try to find an unlinked account by email (e.g. from guest checkout)
+  if (data.email) {
+    const existingByEmail = await db.query.users.findFirst({
+      where: eq(schema.users.email, data.email),
     });
+    
+    if (existingByEmail) {
+      // Link the existing guest account to this Supabase unionId
+      await db.update(schema.users).set({
+        unionId: data.unionId,
+        lastSignInAt: new Date(),
+        avatar: data.avatar || existingByEmail.avatar,
+        name: data.name || existingByEmail.name,
+      }).where(eq(schema.users.id, existingByEmail.id));
+      return;
+    }
+  }
+
+  // If completely new, insert
+  await db.insert(schema.users).values(values);
 }

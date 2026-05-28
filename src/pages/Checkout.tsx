@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router'
 import { trpc } from '@/providers/trpc'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
 
 import { useAuth } from '@/hooks/useAuth'
 
@@ -17,10 +18,11 @@ const steps = ['Review', 'Contact', 'Address', 'Payment']
 
 export default function Checkout() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, error: authError } = useAuth()
   const [step, setStep] = useState(0)
   const [placedOrder, setPlacedOrder] = useState<any>(null)
   const [email, setEmail] = useState('')
+  const [awaitingAuth, setAwaitingAuth] = useState(false)
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState({ name: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' })
   const [paymentMethod, setPaymentMethod] = useState('upi')
@@ -44,8 +46,11 @@ export default function Checkout() {
   })
 
   const createOrder = trpc.order.create.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast.success('Order placed successfully!')
+      
+      
+
       setPlacedOrder({
         orderId: data.orderId,
         orderNumber: data.orderNumber,
@@ -57,7 +62,7 @@ export default function Checkout() {
       clearCart.mutate(undefined, {
         onSuccess: () => utils.cart.get.invalidate()
       })
-      setStep(4)
+      setStep(4) // remains unchanged
     },
     onError: () => {
       toast.error('Something went wrong')
@@ -87,20 +92,52 @@ export default function Checkout() {
       discount,
       couponCode: appliedCoupon?.code,
       shipping: shipping + codCharge,
+      email: email || undefined,
     })
   }
 
-  const handleNextStep = () => {
-    if (step === 1) {
-      if (!email || !phone) {
-        toast.error("Please fill in all contact details")
-        return
-      }
-      if (phone.length !== 10) {
-        toast.error("Phone number must be 10 digits")
-        return
-      }
+  // Pre-fill email if user is logged in
+  useEffect(() => {
+    if (user && !email && user.email) {
+      setEmail(user.email);
     }
+  }, [user, email]);
+
+  const handleNextStep = async () => {
+    // Step 0: Order Review → go to Contact step (or Address if logged in)
+    if (step === 0) {
+      if (user) {
+        setStep(2);
+      } else {
+        setStep(1);
+      }
+      return;
+    }
+    if (step === 1) {
+        if (!email || !phone) {
+          toast.error("Please fill in all contact details")
+          return
+        }
+        if (phone.length !== 10) {
+          toast.error("Phone number must be 10 digits")
+          return
+        }
+        // Send magic link to verify email and create user
+        try {
+          await supabase.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        })
+          toast.info('We sent a magic link to your email. Please click it to continue.')
+          setAwaitingAuth(true)
+        } catch (err) {
+          console.error('Failed to send magic link', err)
+          toast.error('Failed to send magic link')
+          return
+        }
+        // Do not advance step now; will advance on auth state change
+        return
+      }
     if (step === 2) {
       if (!address.name || !address.addressLine1 || !address.city || !address.state || !address.pincode) {
         toast.error("Please fill in all mandatory address details")
@@ -110,8 +147,9 @@ export default function Checkout() {
         toast.error("Pincode must be 6 digits")
         return
       }
+      setStep(3)
+      return
     }
-    setStep(step + 1)
   }
 
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,8 +158,7 @@ export default function Checkout() {
     
     if (val.length === 6) {
       try {
-        const res = await fetch(`https://api.postalpincode.in/pincode/${val}`)
-        const data = await res.json()
+        const data = await utils.cart.getPincode.fetch(val)
         if (data && data[0] && data[0].Status === 'Success') {
           const po = data[0].PostOffice[0]
           setAddress(prev => ({ ...prev, city: po.District, state: po.State, pincode: val }))
@@ -399,7 +436,13 @@ export default function Checkout() {
           {step < 4 && (
             <div className="flex gap-3 mt-8">
               {step > 0 && (
-                <button onClick={() => setStep(step - 1)} className="btn-outline">
+                <button 
+                  onClick={() => {
+                    if (user && step === 2) setStep(0)
+                    else setStep(step - 1)
+                  }} 
+                  className="btn-outline"
+                >
                   Back
                 </button>
               )}

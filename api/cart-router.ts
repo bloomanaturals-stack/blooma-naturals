@@ -1,8 +1,9 @@
 import { z } from "zod";
+import https from "https";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { carts, coupons } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 function getSessionId(ctx: { req: Request; resHeaders: Headers }): string {
@@ -21,6 +22,14 @@ export const cartRouter = createRouter({
     const db = getDb();
     const sessionId = getSessionId(ctx);
     const userId = ctx.user?.id;
+
+    if (userId) {
+      // Claim any guest cart items associated with this session
+      await db.update(carts).set({
+        userId: userId,
+        sessionId: null,
+      }).where(and(eq(carts.sessionId, sessionId), isNull(carts.userId)));
+    }
 
     const where = userId
       ? eq(carts.userId, userId)
@@ -109,7 +118,9 @@ export const cartRouter = createRouter({
     const db = getDb();
     const sessionId = getSessionId(ctx);
     const userId = ctx.user?.id;
-    const where = userId ? eq(carts.userId, userId) : eq(carts.sessionId, sessionId);
+    const where = userId 
+      ? or(eq(carts.userId, userId), eq(carts.sessionId, sessionId))
+      : eq(carts.sessionId, sessionId);
     await db.delete(carts).where(where);
     return { success: true };
   }),
@@ -137,5 +148,23 @@ export const cartRouter = createRouter({
       }
 
       return { valid: true, discount: Math.round(discount), coupon: { code: coupon.code, type: coupon.type, value: Number(coupon.value) } };
+    }),
+
+  getPincode: publicQuery
+    .input(z.string())
+    .query(async ({ input }) => {
+      return new Promise<any>((resolve) => {
+        https.get(`https://api.postalpincode.in/pincode/${input}`, { rejectUnauthorized: false }, (res) => {
+          let data = '';
+          res.on('data', (chunk) => data += chunk);
+          res.on('end', () => {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              resolve(null);
+            }
+          });
+        }).on('error', () => resolve(null));
+      });
     }),
 });

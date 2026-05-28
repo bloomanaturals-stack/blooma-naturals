@@ -9,6 +9,7 @@ import Account from './pages/Account'
 import Quiz from './pages/Quiz'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
+import AuthCallback from './pages/AuthCallback'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="quiz" element={<Quiz />} />
         <Route path="admin" element={<Admin />} />
         <Route path="login" element={<Login />} />
+        <Route path="auth/callback" element={<AuthCallback />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

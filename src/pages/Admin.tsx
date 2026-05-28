@@ -35,6 +35,7 @@ export default function Admin() {
   const [orderStatus, setOrderStatus] = useState('')
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [selectedOrder, setSelectedOrder] = useState<any>(null)
 
   const { data: dashboard } = trpc.admin.getDashboard.useQuery(undefined, { enabled: activeTab === 'dashboard' })
   const { data: productsData } = trpc.admin.getProducts.useQuery(
@@ -546,13 +547,70 @@ export default function Admin() {
                         </td>
                         <td className="px-5 py-3 text-xs text-[#2D2D2D]/50">{new Date(order.createdAt).toLocaleDateString()}</td>
                         <td className="px-5 py-3">
-                          <Link to={`/account?order=${order.id}`} className="p-1 hover:text-[#455848]"><Eye className="w-4 h-4" /></Link>
+                          <button onClick={() => setSelectedOrder(order)} className="p-1 hover:text-[#455848]"><Eye className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto print-area">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center justify-between pr-6">
+                      <span>Order Details - {selectedOrder?.orderNumber}</span>
+                      <button onClick={() => window.print()} className="print-hidden text-sm bg-[#455848] hover:bg-[#6D8A7C] text-white px-4 py-1.5 rounded-md transition-colors font-normal flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Print
+                      </button>
+                    </DialogTitle>
+                  </DialogHeader>
+                  {selectedOrder && (
+                    <div className="space-y-6 mt-4">
+                      <div className="flex justify-between items-start bg-[#EBE5D9] p-4 rounded-lg">
+                        <div>
+                          <p className="text-sm font-semibold">Customer</p>
+                          <p className="text-sm text-[#2D2D2D]/70">{selectedOrder.shippingAddress?.name}</p>
+                          <p className="text-sm text-[#2D2D2D]/70">{selectedOrder.shippingAddress?.phone}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-semibold mb-3 border-b pb-2">Items</h3>
+                        <div className="space-y-3">
+                          {selectedOrder.items?.map((item: any) => (
+                            <div key={item.id} className="flex justify-between text-sm">
+                              <div>
+                                <p className="font-medium">{item.productName}</p>
+                                <p className="text-xs text-[#2D2D2D]/50">Qty: {item.quantity} {item.size ? `| Size: ${item.size}` : ''}</p>
+                              </div>
+                              <p className="font-semibold">₹{item.total}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-4 space-y-2 text-sm">
+                        <div className="flex justify-between text-[#2D2D2D]/60"><span>Subtotal</span><span>₹{selectedOrder.subtotal}</span></div>
+                        <div className="flex justify-between text-[#2D2D2D]/60"><span>Discount</span><span>-₹{selectedOrder.discount}</span></div>
+                        <div className="flex justify-between text-[#2D2D2D]/60"><span>Shipping</span><span>₹{selectedOrder.shipping}</span></div>
+                        <div className="flex justify-between font-semibold text-base pt-2 border-t"><span>Total</span><span>₹{selectedOrder.total}</span></div>
+                      </div>
+
+                      <div className="bg-[#FAFAFA] p-4 rounded-lg text-sm border">
+                        <p className="font-semibold mb-2">Shipping Address</p>
+                        <p className="text-[#2D2D2D]/70">{selectedOrder.shippingAddress?.addressLine1}</p>
+                        {selectedOrder.shippingAddress?.addressLine2 && <p className="text-[#2D2D2D]/70">{selectedOrder.shippingAddress?.addressLine2}</p>}
+                        <p className="text-[#2D2D2D]/70">{selectedOrder.shippingAddress?.city}, {selectedOrder.shippingAddress?.state} - {selectedOrder.shippingAddress?.pincode}</p>
+                        <p className="mt-3 font-semibold">Payment Method: <span className="font-normal text-[#2D2D2D]/70 uppercase">{selectedOrder.paymentMethod}</span></p>
+                      </div>
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 

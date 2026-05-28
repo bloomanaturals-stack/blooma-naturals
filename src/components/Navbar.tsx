@@ -100,7 +100,7 @@ export default function Navbar({ scrollY }: NavbarProps) {
                     {user ? (
                       <>
                         <Link to="/account" className="px-4 py-2 text-sm text-[#2D2D2D] hover:bg-[#EBE5D9] hover:text-[#455848] transition-colors">Profile</Link>
-                        <Link to="/account/orders" className="px-4 py-2 text-sm text-[#2D2D2D] hover:bg-[#EBE5D9] hover:text-[#455848] transition-colors">Orders</Link>
+                        <Link to="/account" className="px-4 py-2 text-sm text-[#2D2D2D] hover:bg-[#EBE5D9] hover:text-[#455848] transition-colors">Orders</Link>
                         {user.role === 'admin' && (
                           <Link to="/admin" className="px-4 py-2 text-sm text-[#2D2D2D] hover:bg-[#EBE5D9] hover:text-[#455848] transition-colors">Admin</Link>
                         )}

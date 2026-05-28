@@ -34,5 +34,5 @@ export async function authenticateRequest(headers: Headers) {
     return user;
   }
 
-  throw Errors.forbidden("Invalid authentication token.");
+  return undefined;
 }

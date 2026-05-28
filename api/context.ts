@@ -6,6 +6,7 @@ export type TrpcContext = {
   req: Request;
   resHeaders: Headers;
   user?: User;
+  authError?: string;
 };
 
 export async function createContext(
@@ -14,7 +15,9 @@ export async function createContext(
   const ctx: TrpcContext = { req: opts.req, resHeaders: opts.resHeaders };
   try {
     ctx.user = await authenticateRequest(opts.req.headers);
-  } catch {
+  } catch (err: any) {
+    console.error("Auth error:", err);
+    ctx.authError = err.message || String(err);
     // Authentication is optional here
   }
   return ctx;

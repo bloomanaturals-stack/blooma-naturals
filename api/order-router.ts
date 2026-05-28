@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { createRouter, publicQuery, authedQuery, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { orders, orderItems } from "@db/schema";
+import { orders, orderItems, users } from "@db/schema";
+import { randomUUID } from "crypto";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 function generateOrderNumber(): string {
-  return "VD" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
+  return "BN" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
 }
 
 export const orderRouter = createRouter({
@@ -30,20 +31,41 @@ export const orderRouter = createRouter({
         }),
         paymentMethod: z.enum(["upi", "card", "netbanking", "wallet", "cod"]),
         couponCode: z.string().optional(),
+        email: z.string().optional(),
         discount: z.number().default(0),
         shipping: z.number().default(0),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const db = getDb();
-      const userId = ctx.user?.id ?? 0;
+      let finalUserId = ctx.user?.id ?? 0;
+
+      // Auto-create or link user if email is provided
+      if (!finalUserId && input.email) {
+        const existingUser = await db.query.users.findFirst({
+          where: eq(users.email, input.email),
+        });
+        if (existingUser) {
+          finalUserId = existingUser.id;
+        } else {
+          const newUser = await db.insert(users).values({
+            email: input.email,
+            name: input.shippingAddress.name,
+            phone: input.shippingAddress.phone,
+            unionId: randomUUID(),
+            role: "user",
+          }).returning({ id: users.id });
+          finalUserId = newUser[0].id;
+        }
+      }
+
       const subtotal = input.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
       const total = subtotal - input.discount + input.shipping;
       const orderNumber = generateOrderNumber();
 
       const order = await db.insert(orders).values({
         orderNumber,
-        userId: userId || 1,
+        userId: finalUserId || 1,
         status: "pending",
         paymentStatus: "pending",
         paymentMethod: input.paymentMethod,
@@ -78,7 +100,11 @@ export const orderRouter = createRouter({
     return db.query.orders.findMany({
       where: eq(orders.userId, ctx.user.id),
       orderBy: desc(orders.createdAt),
-      with: { items: true },
+      with: { 
+        items: {
+          with: { product: { columns: { image: true, slug: true } } }
+        } 
+      },
     });
   }),
 

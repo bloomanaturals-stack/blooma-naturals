@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { trpc } from '@/providers/trpc'
-import { Package, MapPin, Heart, User, LogOut } from 'lucide-react'
+import { Package, MapPin, Heart, User, LogOut, ChevronDown, ChevronUp } from 'lucide-react'
 import { Link } from 'react-router'
 
 const tabs = [
@@ -14,6 +14,15 @@ const tabs = [
 export default function Account() {
   const { user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('orders')
+  const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set())
+  
+  const toggleOrder = (orderId: number) => {
+    const newSet = new Set(expandedOrders)
+    if (newSet.has(orderId)) newSet.delete(orderId)
+    else newSet.add(orderId)
+    setExpandedOrders(newSet)
+  }
+
   const { data: ordersData } = trpc.order.list.useQuery(undefined, { enabled: activeTab === 'orders' })
   const { data: addressesData } = trpc.address.list.useQuery(undefined, { enabled: activeTab === 'addresses' })
   const { data: wishlistData } = trpc.wishlist.list.useQuery(undefined, { enabled: activeTab === 'wishlist' })
@@ -90,29 +99,123 @@ export default function Account() {
                   <div className="space-y-4">
                     {ordersData.map((order) => (
                       <div key={order.id} className="bg-[#EBE5D9] rounded-xl p-5">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="text-sm font-semibold">{order.orderNumber}</p>
-                            <p className="text-xs text-[#2D2D2D]/50">{new Date(order.createdAt).toLocaleDateString()}</p>
+                        <div 
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3 cursor-pointer select-none"
+                          onClick={() => toggleOrder(order.id)}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`flex items-center gap-2 transition-all duration-300 overflow-hidden ${
+                              expandedOrders.has(order.id) 
+                                ? 'max-w-0 opacity-0 scale-95 origin-left' 
+                                : 'max-w-[300px] opacity-100 scale-100 origin-left'
+                            }`}>
+                              {order.items?.slice(0, 3).map((item: any, i) => (
+                                item.product?.image ? (
+                                  <div key={i} className="w-14 h-14 rounded-md overflow-hidden bg-white border border-[#E5E5E5] flex-shrink-0">
+                                    <img src={item.product.image} alt={item.productName} className="w-full h-full object-cover" />
+                                  </div>
+                                ) : (
+                                  <div key={i} className="w-14 h-14 rounded-md bg-[#E5E5E5] flex-shrink-0"></div>
+                                )
+                              ))}
+                              {(order.items?.length ?? 0) > 3 && (
+                                <div className="w-14 h-14 rounded-md bg-[#455848]/10 text-[#455848] text-xs font-semibold flex items-center justify-center flex-shrink-0">
+                                  +{(order.items?.length ?? 0) - 3}
+                                </div>
+                              )}
+                            </div>
+                            <div className="whitespace-nowrap">
+                              <p className="text-sm font-semibold hover:text-[#455848] transition-colors">{order.orderNumber}</p>
+                              <p className="text-sm text-[#2D2D2D]/60 mt-1">{new Date(order.createdAt).toLocaleDateString()} • <span className="font-medium text-[#2D2D2D]">₹{order.total}</span></p>
+                            </div>
                           </div>
-                          <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                            order.status === 'delivered' ? 'bg-[#6B8259]/10 text-[#6B8259]' :
-                            order.status === 'shipped' ? 'bg-[#455848]/10 text-[#455848]' :
-                            'bg-[#C59B53]/10 text-[#C59B53]'
-                          }`}>
-                            {(order.status ?? 'pending').charAt(0).toUpperCase() + (order.status ?? 'pending').slice(1)}
-                          </span>
-                        </div>
-                        {order.items?.map((item, i) => (
-                          <div key={i} className="flex justify-between text-sm py-1">
-                            <span className="text-[#2D2D2D]/70">{item.productName} x{item.quantity}</span>
-                            <span>₹{item.total}</span>
+                          <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                              order.status === 'delivered' ? 'bg-[#6B8259]/10 text-[#6B8259]' :
+                              order.status === 'shipped' ? 'bg-[#455848]/10 text-[#455848]' :
+                              'bg-[#C59B53]/10 text-[#C59B53]'
+                            }`}>
+                              {(order.status ?? 'pending').charAt(0).toUpperCase() + (order.status ?? 'pending').slice(1)}
+                            </span>
+                            {expandedOrders.has(order.id) ? (
+                              <ChevronUp className="w-5 h-5 text-[#2D2D2D]/50" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-[#2D2D2D]/50" />
+                            )}
                           </div>
-                        ))}
-                        <div className="border-t border-[#E5E5E5] mt-3 pt-3 flex justify-between font-semibold">
-                          <span>Total</span>
-                          <span>₹{order.total}</span>
                         </div>
+
+                        {expandedOrders.has(order.id) && (
+                          <div className="pt-4 mt-4 border-t border-[#E5E5E5] animate-in slide-in-from-top-2 duration-200">
+                            <div className="space-y-4">
+                              {order.items?.map((item: any, i) => (
+                                <div key={i} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-3">
+                                    {item.product?.image && item.product?.slug ? (
+                                      <Link to={`/product/${item.product.slug}`} className="block w-12 h-12 rounded overflow-hidden border border-[#E5E5E5] hover:opacity-80 transition-opacity flex-shrink-0">
+                                        <img src={item.product.image} alt={item.productName} className="w-full h-full object-cover" />
+                                      </Link>
+                                    ) : item.product?.image ? (
+                                      <div className="w-12 h-12 rounded overflow-hidden border border-[#E5E5E5] flex-shrink-0">
+                                        <img src={item.product.image} alt={item.productName} className="w-full h-full object-cover" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-12 h-12 rounded bg-[#E5E5E5] flex-shrink-0" />
+                                    )}
+                                    <div className="max-w-[200px] sm:max-w-md">
+                                      {item.product?.slug ? (
+                                        <Link to={`/product/${item.product.slug}`} className="font-medium text-[#2D2D2D] hover:text-[#455848] line-clamp-2 transition-colors">
+                                          {item.productName} {item.size ? `(${item.size})` : ''}
+                                        </Link>
+                                      ) : (
+                                        <p className="font-medium text-[#2D2D2D] line-clamp-2">{item.productName} {item.size ? `(${item.size})` : ''}</p>
+                                      )}
+                                      <p className="text-[#2D2D2D]/60 text-xs mt-1">Qty: {item.quantity}</p>
+                                    </div>
+                                  </div>
+                                  <span className="font-medium whitespace-nowrap">₹{item.total}</span>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            <div className="bg-white rounded-lg p-4 mt-4 space-y-2 text-sm border border-[#E5E5E5]/50">
+                              <div className="flex justify-between">
+                                <span className="text-[#2D2D2D]/60">Subtotal</span>
+                                <span>₹{order.subtotal}</span>
+                              </div>
+                              {Number(order.discount) > 0 && (
+                                <div className="flex justify-between text-[#6B8259]">
+                                  <span>Discount {order.couponCode ? `(${order.couponCode})` : ''}</span>
+                                  <span>-₹{order.discount}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <span className="text-[#2D2D2D]/60">Shipping</span>
+                                <span>{Number(order.shipping) === 0 ? 'Free' : `₹${order.shipping}`}</span>
+                              </div>
+                              <div className="border-t border-[#E5E5E5] pt-2 mt-2 flex justify-between font-semibold text-base">
+                                <span>Total</span>
+                                <span>₹{order.total}</span>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 pt-4 border-t border-[#E5E5E5] grid md:grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <p className="font-semibold text-[#2D2D2D]/60 uppercase text-xs mb-1">Shipping Address</p>
+                                <p className="font-medium">{order.shippingAddress?.name}</p>
+                                <p className="text-[#2D2D2D]/70">{order.shippingAddress?.addressLine1}</p>
+                                {order.shippingAddress?.addressLine2 && <p className="text-[#2D2D2D]/70">{order.shippingAddress?.addressLine2}</p>}
+                                <p className="text-[#2D2D2D]/70">{order.shippingAddress?.city}, {order.shippingAddress?.state} - {order.shippingAddress?.pincode}</p>
+                                <p className="text-[#2D2D2D]/70 mt-1">Phone: {order.shippingAddress?.phone}</p>
+                              </div>
+                              <div>
+                                <p className="font-semibold text-[#2D2D2D]/60 uppercase text-xs mb-1">Payment Details</p>
+                                <p className="text-[#2D2D2D]/70 capitalize">Method: {order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}</p>
+                                <p className="text-[#2D2D2D]/70 capitalize">Status: {order.paymentStatus}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
