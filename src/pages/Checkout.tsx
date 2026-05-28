@@ -19,6 +19,7 @@ export default function Checkout() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [step, setStep] = useState(0)
+  const [placedOrder, setPlacedOrder] = useState<any>(null)
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState({ name: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' })
@@ -32,13 +33,17 @@ export default function Checkout() {
   const createOrder = trpc.order.create.useMutation({
     onSuccess: (data) => {
       toast.success('Order placed successfully!')
+      setPlacedOrder({
+        orderId: data.orderId,
+        orderNumber: data.orderNumber,
+        total: data.total,
+        items: cartData?.items || [],
+        address,
+        paymentMethod: paymentMethods.find(p => p.id === paymentMethod)?.label,
+      })
       clearCart.mutate()
       utils.cart.get.invalidate()
-      if (user) {
-        navigate(`/account?order=${data.orderId}`)
-      } else {
-        setStep(4)
-      }
+      setStep(4)
     },
     onError: () => {
       toast.error('Something went wrong')
@@ -185,20 +190,78 @@ export default function Checkout() {
             </div>
           )}
 
-          {step === 4 && (
-            <div className="text-center space-y-4 py-12">
-              <div className="w-16 h-16 bg-[#455848] rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
+          {step === 4 && placedOrder && (
+            <div className="space-y-6 max-w-2xl mx-auto py-8">
+              <div className="text-center space-y-4 mb-8">
+                <div className="w-16 h-16 bg-[#455848] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-semibold text-[#2D2D2D]">Order placed, thanks!</h2>
+                <p className="text-[#2D2D2D]/70">
+                  Confirmation will be sent to your email.
+                </p>
               </div>
-              <h2 className="text-2xl font-semibold text-[#2D2D2D]">Order Placed Successfully!</h2>
-              <p className="text-[#2D2D2D]/70 max-w-md mx-auto">
-                Thank you for your purchase. We've sent a confirmation email to {email}.
-              </p>
-              <Link to="/shop" className="btn-primary inline-block mt-6 px-8">
-                Continue Shopping
-              </Link>
+
+              <div className="bg-white border border-[#E5E5E5] rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-[#EBE5D9] px-6 py-4 border-b border-[#E5E5E5] flex flex-wrap gap-6 text-sm">
+                  <div>
+                    <p className="text-[#2D2D2D]/60 uppercase text-xs font-semibold mb-1">Order Placed</p>
+                    <p className="font-medium">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[#2D2D2D]/60 uppercase text-xs font-semibold mb-1">Total</p>
+                    <p className="font-medium">₹{placedOrder.total}</p>
+                  </div>
+                  <div>
+                    <p className="text-[#2D2D2D]/60 uppercase text-xs font-semibold mb-1">Dispatch To</p>
+                    <p className="font-medium text-[#455848]">{placedOrder.address.name}</p>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <p className="text-[#2D2D2D]/60 uppercase text-xs font-semibold mb-1">Order #</p>
+                    <p className="font-medium">{placedOrder.orderNumber}</p>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <h3 className="font-semibold text-lg mb-4 text-[#455848]">Arriving {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h3>
+                  <div className="space-y-4">
+                    {placedOrder.items.map((item: any) => (
+                      <div key={item.id} className="flex gap-4">
+                        <div className="w-20 h-20 bg-[#EBE5D9] rounded-lg overflow-hidden flex-shrink-0">
+                          {item.product?.image ? (
+                            <img src={item.product.image} alt={item.product?.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[#2D2D2D]/20">No Image</div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-[#2D2D2D] line-clamp-2">{item.product?.name}</p>
+                          <p className="text-sm text-[#2D2D2D]/60 mt-1">Qty: {item.quantity}</p>
+                          <p className="text-sm font-semibold mt-1">₹{item.total}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="bg-[#FAFAFA] border-t border-[#E5E5E5] px-6 py-4">
+                  <p className="text-sm text-[#2D2D2D]/70"><span className="font-semibold">Payment Method:</span> {placedOrder.paymentMethod}</p>
+                  <p className="text-sm text-[#2D2D2D]/70 mt-1"><span className="font-semibold">Shipping Address:</span> {placedOrder.address.addressLine1}{placedOrder.address.addressLine2 ? `, ${placedOrder.address.addressLine2}` : ''}, {placedOrder.address.city}, {placedOrder.address.state} - {placedOrder.address.pincode}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                {user ? (
+                  <Link to={`/account?order=${placedOrder.orderId}`} className="btn-outline text-center px-6">
+                    Review or edit your recent orders
+                  </Link>
+                ) : null}
+                <Link to="/shop" className="btn-primary text-center px-6">
+                  Continue Shopping
+                </Link>
+              </div>
             </div>
           )}
 
