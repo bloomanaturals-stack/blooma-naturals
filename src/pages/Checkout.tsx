@@ -25,10 +25,23 @@ export default function Checkout() {
   const [address, setAddress] = useState({ name: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' })
   const [paymentMethod, setPaymentMethod] = useState('upi')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string, discount: number } | null>(null)
 
   const utils = trpc.useUtils()
   const { data: cartData } = trpc.cart.get.useQuery()
   const clearCart = trpc.cart.clear.useMutation()
+
+  const applyCoupon = trpc.cart.applyCoupon.useMutation({
+    onSuccess: (data) => {
+      if (data.valid) {
+        setAppliedCoupon({ code: data.coupon!.code, discount: data.discount! })
+        toast.success(`Coupon applied! You saved ₹${data.discount}`)
+      } else {
+        toast.error(data.message)
+      }
+    }
+  })
 
   const createOrder = trpc.order.create.useMutation({
     onSuccess: (data) => {
@@ -41,8 +54,9 @@ export default function Checkout() {
         address,
         paymentMethod: paymentMethods.find(p => p.id === paymentMethod)?.label,
       })
-      clearCart.mutate()
-      utils.cart.get.invalidate()
+      clearCart.mutate(undefined, {
+        onSuccess: () => utils.cart.get.invalidate()
+      })
       setStep(4)
     },
     onError: () => {
@@ -52,9 +66,10 @@ export default function Checkout() {
   })
 
   const subtotal = cartData?.subtotal ?? 0
+  const discount = appliedCoupon?.discount ?? 0
   const shipping = subtotal >= 999 ? 0 : 99
   const codCharge = paymentMethod === 'cod' ? 50 : 0
-  const total = subtotal + shipping + codCharge
+  const total = subtotal - discount + shipping + codCharge
 
   const handlePlaceOrder = () => {
     if (!cartData?.items?.length) return
@@ -69,7 +84,8 @@ export default function Checkout() {
       })),
       shippingAddress: { ...address, phone },
       paymentMethod: paymentMethod as any,
-      discount: 0,
+      discount,
+      couponCode: appliedCoupon?.code,
       shipping: shipping + codCharge,
     })
   }
@@ -175,8 +191,33 @@ export default function Checkout() {
                     <span>₹{item.total}</span>
                   </div>
                 ))}
+                
+                <div className="border-t border-[#E5E5E5] pt-3 pb-1 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Coupon Code"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-1 border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#455848]"
+                  />
+                  <button
+                    onClick={() => applyCoupon.mutate({ code: couponCode, subtotal })}
+                    disabled={!couponCode || applyCoupon.isPending}
+                    className="bg-[#455848] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#6D8A7C] disabled:opacity-50"
+                  >
+                    Apply
+                  </button>
+                </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm text-[#6B8259]">
+                    <span>Coupon ({appliedCoupon.code})</span>
+                    <button onClick={() => { setAppliedCoupon(null); setCouponCode(''); }} className="text-xs underline ml-2">Remove</button>
+                  </div>
+                )}
+
                 <div className="border-t border-[#E5E5E5] pt-3 space-y-1 text-sm">
                   <div className="flex justify-between"><span className="text-[#2D2D2D]/60">Subtotal</span><span>₹{subtotal}</span></div>
+                  {appliedCoupon && <div className="flex justify-between text-[#6B8259]"><span className="text-[#2D2D2D]/60">Discount</span><span>-₹{discount}</span></div>}
                   <div className="flex justify-between"><span className="text-[#2D2D2D]/60">Shipping</span><span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span></div>
                   {codCharge > 0 && <div className="flex justify-between"><span className="text-[#2D2D2D]/60">COD Fee</span><span>₹{codCharge}</span></div>}
                   <div className="flex justify-between font-semibold text-base pt-1"><span>Total</span><span>₹{total}</span></div>
