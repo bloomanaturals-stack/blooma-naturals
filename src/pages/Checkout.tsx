@@ -74,7 +74,7 @@ export default function Checkout() {
     })
   }
 
-  if (!cartData?.items?.length) {
+  if (!cartData?.items?.length && !placedOrder) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
