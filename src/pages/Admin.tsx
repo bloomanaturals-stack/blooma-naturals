@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useAuth } from '@/hooks/useAuth'
 import { trpc } from '@/providers/trpc'
 import { Link } from 'react-router'
 import {
@@ -7,7 +6,6 @@ import {
   Search, ChevronLeft, ChevronRight, Eye, Plus, Trash2, Pencil
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,7 +27,6 @@ const statusColors: Record<string, string> = {
 }
 
 export default function Admin() {
-  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [productPage, setProductPage] = useState(1)
   const [orderPage, setOrderPage] = useState(1)

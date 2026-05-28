@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router'
 import { trpc } from '@/providers/trpc'
 import { toast } from 'sonner'
 
+import { useAuth } from '@/hooks/useAuth'
+
 const paymentMethods = [
   { id: 'upi', label: 'UPI', sub: 'Google Pay, PhonePe, Paytm' },
   { id: 'card', label: 'Credit/Debit Card', sub: 'Visa, Mastercard, RuPay' },
@@ -15,6 +17,7 @@ const steps = ['Contact', 'Address', 'Payment', 'Review']
 
 export default function Checkout() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [step, setStep] = useState(0)
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -24,13 +27,23 @@ export default function Checkout() {
 
   const utils = trpc.useUtils()
   const { data: cartData } = trpc.cart.get.useQuery()
+  const clearCart = trpc.cart.clear.useMutation()
+
   const createOrder = trpc.order.create.useMutation({
     onSuccess: (data) => {
       toast.success('Order placed successfully!')
+      clearCart.mutate()
       utils.cart.get.invalidate()
-      navigate(`/account?order=${data.orderId}`)
+      if (user) {
+        navigate(`/account?order=${data.orderId}`)
+      } else {
+        setStep(4)
+      }
     },
-    onError: () => toast.error('Something went wrong'),
+    onError: () => {
+      toast.error('Something went wrong')
+      setIsProcessing(false)
+    },
   })
 
   const subtotal = cartData?.subtotal ?? 0
@@ -172,30 +185,49 @@ export default function Checkout() {
             </div>
           )}
 
+          {step === 4 && (
+            <div className="text-center space-y-4 py-12">
+              <div className="w-16 h-16 bg-[#455848] rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-semibold text-[#2D2D2D]">Order Placed Successfully!</h2>
+              <p className="text-[#2D2D2D]/70 max-w-md mx-auto">
+                Thank you for your purchase. We've sent a confirmation email to {email}.
+              </p>
+              <Link to="/shop" className="btn-primary inline-block mt-6 px-8">
+                Continue Shopping
+              </Link>
+            </div>
+          )}
+
           {/* Navigation */}
-          <div className="flex gap-3 mt-8">
-            {step > 0 && (
-              <button onClick={() => setStep(step - 1)} className="btn-outline">
-                Back
-              </button>
-            )}
-            {step < 3 ? (
-              <button
-                onClick={() => setStep(step + 1)}
-                className="btn-primary flex-1"
-              >
-                Continue
-              </button>
-            ) : (
-              <button
-                onClick={handlePlaceOrder}
-                disabled={isProcessing}
-                className="btn-primary flex-1 disabled:opacity-50"
-              >
-                {isProcessing ? 'Processing...' : `Place Order • ₹${total}`}
-              </button>
-            )}
-          </div>
+          {step < 4 && (
+            <div className="flex gap-3 mt-8">
+              {step > 0 && (
+                <button onClick={() => setStep(step - 1)} className="btn-outline">
+                  Back
+                </button>
+              )}
+              {step < 3 ? (
+                <button
+                  onClick={() => setStep(step + 1)}
+                  className="btn-primary flex-1"
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={isProcessing}
+                  className="btn-primary flex-1 disabled:opacity-50"
+                >
+                  {isProcessing ? 'Processing...' : `Place Order • ₹${total}`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
