@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createRouter, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { products, orders, users, newsletter, settings } from "@db/schema";
+import { products, orders, users, newsletter, settings, reviews } from "@db/schema";
 import { eq, desc, sql, like, and } from "drizzle-orm";
 
 export const adminRouter = createRouter({
@@ -135,6 +135,31 @@ export const adminRouter = createRouter({
     .mutation(async ({ input }) => {
       const db = getDb();
       await db.update(settings).set({ value: input.value }).where(eq(settings.key, input.key));
+      return { success: true };
+    }),
+
+  getReviews: adminQuery
+    .input(z.object({ page: z.number().default(1), limit: z.number().default(20) }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const offset = (input.page - 1) * input.limit;
+      const items = await db.query.reviews.findMany({
+        orderBy: desc(reviews.createdAt),
+        limit: input.limit,
+        offset,
+      });
+      const countResult = await db.select({ count: sql<number>`count(*)` }).from(reviews);
+      return { items, total: countResult[0]?.count ?? 0, page: input.page, limit: input.limit };
+    }),
+
+  updateReview: adminQuery
+    .input(z.object({
+      id: z.number(),
+      isPublished: z.boolean(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db.update(reviews).set({ isPublished: input.isPublished }).where(eq(reviews.id, input.id));
       return { success: true };
     }),
 });

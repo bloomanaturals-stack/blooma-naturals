@@ -43,6 +43,7 @@ export default function Home() {
   const { data: newArrivals } = trpc.product.getNewArrivals.useQuery()
   const { data: concernsData } = trpc.concern.list.useQuery()
   const { data: bestsellers } = trpc.product.getBestsellers.useQuery()
+  const { data: publishedReviews } = trpc.product.getPublishedReviews.useQuery()
 
   return (
     <div>
@@ -287,28 +288,70 @@ export default function Home() {
           <p className="text-sm text-[#2D2D2D]/60 mt-1">Join 50,000+ happy customers</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {testimonials.map((t, i) => (
-            <div key={i} className="bg-[#EBE5D9] rounded-xl p-6 md:p-8">
-              <div className="flex gap-1 mb-4">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-4 h-4 text-[#C59B53] fill-[#C59B53]" />
-                ))}
-              </div>
-              <p className="text-sm text-[#2D2D2D] leading-relaxed mb-6 italic">
-                "{t.text}"
-              </p>
-              <div className="flex items-center gap-3">
-                <img src={t.avatar} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
-                <div>
-                  <p className="text-sm font-semibold">{t.name}</p>
-                  <div className="flex items-center gap-1">
-                    <MessageCircle className="w-3 h-3 text-[#455848]" />
-                    <span className="text-[10px] text-[#455848]">Verified Purchase</span>
+          {publishedReviews && publishedReviews.length > 0 ? (
+            publishedReviews.slice(0, 3).map((review) => (
+              <div key={review.id} className="bg-[#EBE5D9] rounded-xl p-6 md:p-8">
+                <div className="flex gap-1 mb-4">
+                  {Array.from({ length: review.rating }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 text-[#C59B53] fill-[#C59B53]" />
+                  ))}
+                  {Array.from({ length: 5 - review.rating }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 text-gray-300 fill-gray-300" />
+                  ))}
+                </div>
+                <p className="text-sm text-[#2D2D2D] leading-relaxed mb-6 italic">
+                  "{review.comment}"
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#455848] text-white flex items-center justify-center font-bold text-lg">
+                    {review.userName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{review.userName}</p>
+                    <div className="flex flex-col gap-0.5">
+                      {review.isVerified && (
+                        <div className="flex items-center gap-1">
+                          <MessageCircle className="w-3 h-3 text-[#455848]" />
+                          <span className="text-[10px] text-[#455848]">Verified Purchase</span>
+                        </div>
+                      )}
+                      {review.product && (
+                        <Link to={`/product/${review.product.slug}`} className="text-[10px] text-[#2D2D2D]/70 hover:underline">
+                          {review.product.name}
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            testimonials.map((t, i) => (
+              <div key={i} className="bg-[#EBE5D9] rounded-xl p-6 md:p-8">
+                <div className="flex gap-1 mb-4">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star key={s} className="w-4 h-4 text-[#C59B53] fill-[#C59B53]" />
+                  ))}
+                </div>
+                <p className="text-sm text-[#2D2D2D] leading-relaxed mb-6 italic">
+                  "{t.text}"
+                </p>
+                <div className="flex items-center gap-3">
+                  <img src={t.avatar} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.name}</p>
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1">
+                        <MessageCircle className="w-3 h-3 text-[#455848]" />
+                        <span className="text-[10px] text-[#455848]">Verified Purchase</span>
+                      </div>
+                      <span className="text-[10px] text-[#2D2D2D]/70">{t.product}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 

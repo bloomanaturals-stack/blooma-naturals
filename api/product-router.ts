@@ -151,4 +151,14 @@ export const productRouter = createRouter({
         with: { category: true },
       });
     }),
+
+  getPublishedReviews: publicQuery.query(async () => {
+    const db = getDb();
+    return db.query.reviews.findMany({
+      where: eq(reviews.isPublished, true),
+      orderBy: desc(reviews.createdAt),
+      limit: 10,
+      with: { product: true },
+    });
+  }),
 });

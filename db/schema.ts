@@ -111,6 +111,7 @@ export const reviews = pgTable("reviews", {
   title: varchar("title", { length: 255 }),
   comment: text("comment").notNull(),
   isVerified: boolean("isVerified").default(false),
+  isPublished: boolean("isPublished").default(false),
   helpful: integer("helpful").default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

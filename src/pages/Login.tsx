@@ -5,15 +5,20 @@ import { Label } from "@/components/ui/label";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Navigate } from "react-router";
-import { useState } from "react";
+import { Navigate, useLocation } from "react-router";
+import { useState, useEffect } from "react";
 
 export default function Login() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(location.pathname === "/register");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsSignUp(location.pathname === "/register");
+  }, [location.pathname]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();

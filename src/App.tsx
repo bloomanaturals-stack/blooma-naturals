@@ -26,6 +26,7 @@ export default function App() {
         <Route path="quiz" element={<Quiz />} />
         <Route path="admin" element={<Admin />} />
         <Route path="login" element={<Login />} />
+        <Route path="register" element={<Login />} />
         <Route path="auth/callback" element={<AuthCallback />} />
         <Route path="*" element={<NotFound />} />
       </Route>

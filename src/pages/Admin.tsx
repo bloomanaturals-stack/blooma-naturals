@@ -3,7 +3,7 @@ import { trpc } from '@/providers/trpc'
 import { Link } from 'react-router'
 import {
   Package, ShoppingCart, Users, Mail, TrendingUp,
-  Search, ChevronLeft, ChevronRight, Eye, Plus, Trash2, Pencil
+  Search, ChevronLeft, ChevronRight, Eye, Plus, Trash2, Pencil, Star
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -15,6 +15,7 @@ const sidebarItems = [
   { id: 'products', label: 'Products', icon: Package },
   { id: 'orders', label: 'Orders', icon: ShoppingCart },
   { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'newsletter', label: 'Newsletter', icon: Mail },
 ]
 
@@ -31,6 +32,7 @@ export default function Admin() {
   const [productPage, setProductPage] = useState(1)
   const [orderPage, setOrderPage] = useState(1)
   const [customerPage] = useState(1)
+  const [reviewPage, setReviewPage] = useState(1)
   const [productSearch, setProductSearch] = useState('')
   const [orderStatus, setOrderStatus] = useState('')
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
@@ -50,6 +52,10 @@ export default function Admin() {
     { page: customerPage, limit: 10 },
     { enabled: activeTab === 'customers' }
   )
+  const { data: reviewsData } = trpc.admin.getReviews.useQuery(
+    { page: reviewPage, limit: 10 },
+    { enabled: activeTab === 'reviews' }
+  )
   const { data: newsletterData } = { data: { total: 0, items: [] } }
 
   const utils = trpc.useUtils()
@@ -58,6 +64,13 @@ export default function Admin() {
       utils.admin.getOrders.invalidate()
       toast.success('Order status updated')
     },
+  })
+
+  const updateReviewMutation = trpc.admin.updateReview.useMutation({
+    onSuccess: () => {
+      utils.admin.getReviews.invalidate()
+      toast.success('Review status updated')
+    }
   })
 
   const createProductMutation = trpc.admin.createProduct.useMutation({
@@ -639,6 +652,52 @@ export default function Admin() {
                           </span>
                         </td>
                         <td className="px-5 py-3 text-xs text-[#2D2D2D]/50">{new Date(customer.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Reviews */}
+          {activeTab === 'reviews' && (
+            <div>
+              <h1 className="text-2xl font-semibold mb-6">Manage Reviews</h1>
+              <div className="bg-white rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#E5E5E5]">
+                      <th className="text-left px-5 py-3 font-medium text-[#2D2D2D]/60">User</th>
+                      <th className="text-left px-5 py-3 font-medium text-[#2D2D2D]/60">Rating</th>
+                      <th className="text-left px-5 py-3 font-medium text-[#2D2D2D]/60">Comment</th>
+                      <th className="text-left px-5 py-3 font-medium text-[#2D2D2D]/60">Date</th>
+                      <th className="text-left px-5 py-3 font-medium text-[#2D2D2D]/60">Published</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reviewsData?.items?.map((review) => (
+                      <tr key={review.id} className="border-b border-[#EBE5D9]">
+                        <td className="px-5 py-3 font-medium">{review.userName || '—'}</td>
+                        <td className="px-5 py-3 flex items-center gap-1 text-[#C59B53]">
+                          {review.rating} <Star className="w-3 h-3 fill-current" />
+                        </td>
+                        <td className="px-5 py-3 max-w-md truncate">{review.comment}</td>
+                        <td className="px-5 py-3 text-xs text-[#2D2D2D]/50">{new Date(review.createdAt).toLocaleDateString()}</td>
+                        <td className="px-5 py-3">
+                          <label className="flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={review.isPublished || false}
+                              onChange={(e) => updateReviewMutation.mutate({ id: review.id, isPublished: e.target.checked })}
+                              disabled={updateReviewMutation.isPending}
+                            />
+                            <div className={`w-10 h-5 rounded-full p-1 transition-colors ${review.isPublished ? 'bg-[#455848]' : 'bg-gray-300'}`}>
+                              <div className={`w-3 h-3 bg-white rounded-full transition-transform ${review.isPublished ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </div>
+                          </label>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
