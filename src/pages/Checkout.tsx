@@ -13,7 +13,7 @@ const paymentMethods = [
   { id: 'cod', label: 'Cash on Delivery', sub: '+₹50 additional charge' },
 ]
 
-const steps = ['Contact', 'Address', 'Payment', 'Review']
+const steps = ['Review', 'Contact', 'Address', 'Payment']
 
 export default function Checkout() {
   const navigate = useNavigate()
@@ -90,6 +90,50 @@ export default function Checkout() {
     })
   }
 
+  const handleNextStep = () => {
+    if (step === 1) {
+      if (!email || !phone) {
+        toast.error("Please fill in all contact details")
+        return
+      }
+      if (phone.length !== 10) {
+        toast.error("Phone number must be 10 digits")
+        return
+      }
+    }
+    if (step === 2) {
+      if (!address.name || !address.addressLine1 || !address.city || !address.state || !address.pincode) {
+        toast.error("Please fill in all mandatory address details")
+        return
+      }
+      if (address.pincode.length !== 6) {
+        toast.error("Pincode must be 6 digits")
+        return
+      }
+    }
+    setStep(step + 1)
+  }
+
+  const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+    setAddress({ ...address, pincode: val })
+    
+    if (val.length === 6) {
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${val}`)
+        const data = await res.json()
+        if (data && data[0] && data[0].Status === 'Success') {
+          const po = data[0].PostOffice[0]
+          setAddress(prev => ({ ...prev, city: po.District, state: po.State, pincode: val }))
+        } else {
+          toast.error("Invalid pincode")
+        }
+      } catch (err) {
+        console.error("Failed to fetch pincode details", err)
+      }
+    }
+  }
+
   if (!cartData?.items?.length && !placedOrder) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -126,62 +170,6 @@ export default function Checkout() {
 
           {/* Step Content */}
           {step === 0 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Contact Information</h2>
-              <input
-                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email" className="w-full border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
-              />
-              <input
-                type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                placeholder="Phone number (10 digits)" maxLength={10}
-                className="w-full border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
-              />
-            </div>
-          )}
-
-          {step === 1 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Shipping Address</h2>
-              {(['name', 'addressLine1', 'addressLine2', 'city', 'state', 'pincode'] as const).map((field) => (
-                <input
-                  key={field}
-                  type="text"
-                  value={address[field]}
-                  onChange={(e) => setAddress({ ...address, [field]: e.target.value })}
-                  placeholder={field === 'addressLine2' ? 'Apartment, suite, etc. (optional)' : field.charAt(0).toUpperCase() + field.slice(1)}
-                  className="w-full border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
-                />
-              ))}
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-3">
-              <h2 className="text-lg font-semibold">Payment Method</h2>
-              {paymentMethods.map((pm) => (
-                <button
-                  key={pm.id}
-                  onClick={() => setPaymentMethod(pm.id)}
-                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-lg transition-colors ${
-                    paymentMethod === pm.id ? 'border-[#455848] bg-[#EDF2EF]' : 'border-[#E5E5E5]'
-                  }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    paymentMethod === pm.id ? 'border-[#455848]' : 'border-[#E5E5E5]'
-                  }`}>
-                    {paymentMethod === pm.id && <div className="w-2.5 h-2.5 bg-[#455848] rounded-full" />}
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium">{pm.label}</p>
-                    <p className="text-xs text-[#2D2D2D]/50">{pm.sub}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {step === 3 && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold">Order Review</h2>
               <div className="bg-[#EBE5D9] rounded-lg p-5 space-y-3">
@@ -219,15 +207,116 @@ export default function Checkout() {
                   <div className="flex justify-between"><span className="text-[#2D2D2D]/60">Subtotal</span><span>₹{subtotal}</span></div>
                   {appliedCoupon && <div className="flex justify-between text-[#6B8259]"><span className="text-[#2D2D2D]/60">Discount</span><span>-₹{discount}</span></div>}
                   <div className="flex justify-between"><span className="text-[#2D2D2D]/60">Shipping</span><span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span></div>
-                  {codCharge > 0 && <div className="flex justify-between"><span className="text-[#2D2D2D]/60">COD Fee</span><span>₹{codCharge}</span></div>}
-                  <div className="flex justify-between font-semibold text-base pt-1"><span>Total</span><span>₹{total}</span></div>
+                  <div className="flex justify-between font-semibold text-base pt-1"><span>Total</span><span>₹{subtotal - discount + shipping}</span></div>
                 </div>
               </div>
-              <div className="bg-[#EDF2EF] rounded-lg p-4 text-sm">
-                <p className="font-medium mb-1">Shipping to:</p>
-                <p className="text-[#2D2D2D]/70">{address.name}, {address.addressLine1}{address.addressLine2 ? `, ${address.addressLine2}` : ''}, {address.city}, {address.state} - {address.pincode}</p>
-                <p className="mt-2 font-medium">Payment: {paymentMethods.find(p => p.id === paymentMethod)?.label}</p>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Contact Information</h2>
+              <input
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email *" className="w-full border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+                required
+              />
+              <input
+                type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="Phone number (10 digits) *" maxLength={10}
+                className="w-full border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+                required
+              />
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Shipping Address</h2>
+              <input
+                type="text"
+                value={address.name}
+                onChange={(e) => setAddress({ ...address, name: e.target.value })}
+                placeholder="Full Name *"
+                className="w-full border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+                required
+              />
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  value={address.addressLine1}
+                  onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })}
+                  placeholder="Address Line 1 *"
+                  className="flex-1 border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+                  required
+                />
+                <input
+                  type="text"
+                  value={address.pincode}
+                  onChange={handlePincodeChange}
+                  placeholder="Pincode (6 digits) *"
+                  maxLength={6}
+                  className="w-1/3 border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+                  required
+                />
               </div>
+              <input
+                type="text"
+                value={address.addressLine2}
+                onChange={(e) => setAddress({ ...address, addressLine2: e.target.value })}
+                placeholder="Apartment, suite, etc. (optional)"
+                className="w-full border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+              />
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  value={address.city}
+                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                  placeholder="City *"
+                  className="flex-1 border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+                  required
+                />
+                <input
+                  type="text"
+                  value={address.state}
+                  onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                  placeholder="State *"
+                  className="flex-1 border-b-2 border-[#E5E5E5] py-3 outline-none focus:border-[#455848] transition-colors"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold">Payment Method</h2>
+              {paymentMethods.map((pm) => (
+                <button
+                  key={pm.id}
+                  onClick={() => setPaymentMethod(pm.id)}
+                  className={`w-full flex items-center gap-4 p-4 border-2 rounded-lg transition-colors ${
+                    paymentMethod === pm.id ? 'border-[#455848] bg-[#EDF2EF]' : 'border-[#E5E5E5]'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    paymentMethod === pm.id ? 'border-[#455848]' : 'border-[#E5E5E5]'
+                  }`}>
+                    {paymentMethod === pm.id && <div className="w-2.5 h-2.5 bg-[#455848] rounded-full" />}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">{pm.label}</p>
+                    <p className="text-xs text-[#2D2D2D]/50">{pm.sub}</p>
+                  </div>
+                </button>
+              ))}
+              
+              {codCharge > 0 && (
+                <div className="mt-4 p-4 bg-[#EDF2EF] rounded-lg text-sm flex justify-between">
+                  <span className="font-medium text-[#455848]">COD Fee applied</span>
+                  <span className="font-semibold">+₹{codCharge}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -316,7 +405,7 @@ export default function Checkout() {
               )}
               {step < 3 ? (
                 <button
-                  onClick={() => setStep(step + 1)}
+                  onClick={handleNextStep}
                   className="btn-primary flex-1"
                 >
                   Continue
